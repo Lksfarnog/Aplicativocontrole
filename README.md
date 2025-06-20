@@ -1,16 +1,58 @@
-# tcc_projeto
+Tópicos MQTT para cada Experimento
+Aqui estão os tópicos que serão publicados no broker para cada tipo de experimento selecionado.
 
-A new Flutter project.
+1. Malha Aberta e Malha Fechada
 
-## Getting Started
+observadorKe
 
-This project is a starting point for a Flutter application.
+reguladorK
 
-A few resources to get you started if this is your first Flutter project:
+nx
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+nu
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2. Sistemas de 1ª e 2ª ordem
+
+u_primeiraOrdem
+
+kp_segundaOrdem
+
+tetaref_segundaOrdem
+
+erro_segundaOrdem
+
+u_segundaOrdem
+
+3. Sistemas Instáveis em MA
+
+teta_proporcional
+
+kp_proporcional
+
+teta_leadLag
+
+k_leadLag
+
+a_leadLag
+
+b_leadLag
+
+td_leadLag
+
+4. Controlador PID
+
+sc_kp, sc_kd, sc_ki, sc_tetaref, sc_erro, sc_up, sc_ui, sc_ud, sc_u
+
+pid_kp, pid_kd, pid_ki, pid_tetaref, pid_erro, pid_up, pid_ui, pid_ud, pid_u
+
+5. Resposta em Frequência
+
+u_malhaAberta
+
+omegaRef_malhaFechada
+
+erro_malhaFechada
+
+u_malhaFechada
+
+erroK_compensador
