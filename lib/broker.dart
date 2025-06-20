@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-
+import 'pagina_pdf.dart';
 import 'dadosintegrante.dart';
 
 // Tela 1: Escolha do tipo de experimento
@@ -23,12 +23,12 @@ class EscolhaExperimento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
+    
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Seleção de Experimento', style: TextStyle(color: Colors.white)),
-        backgroundColor: theme.primaryColor,
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -112,7 +112,7 @@ class EscolhaExperimento extends StatelessWidget {
     return ElevatedButton(
       onPressed: () => _navigateToExperimento(context, title, parametros),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 60),
         shape: RoundedRectangleBorder(
@@ -264,7 +264,7 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title, style: const TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -277,13 +277,11 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HelpPage(
-                      helpTitle: 'Ajuda: ${widget.title}',
-                    ),
+                    builder: (context) => const PdfPage(),
                   ),
                 );
               },
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
               foregroundColor: Colors.white,
               tooltip: 'Ajuda',
               child: const Icon(Icons.question_mark),
@@ -303,7 +301,7 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
                   ElevatedButton(
                     onPressed: _enviarDados,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
+                      backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
                       foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(55),
                       shape: RoundedRectangleBorder(
@@ -323,29 +321,4 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
 }
 
 
-// CORREÇÃO: Nova página de Ajuda, em branco, com uma AppBar.
-class HelpPage extends StatelessWidget {
-  final String helpTitle;
 
-  const HelpPage({
-    super.key, 
-    required this.helpTitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(helpTitle, style: const TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).primaryColor,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: const Center(
-        // Corpo em branco, como solicitado.
-      ),
-    );
-  }
-}
