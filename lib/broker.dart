@@ -1,127 +1,233 @@
 import 'package:flutter/material.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:lottie/lottie.dart';
+import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
+
 import 'dadosintegrante.dart';
 
-class ConectaBrokerPage extends StatefulWidget {
-  const ConectaBrokerPage({super.key});
+// Tela 1: Escolha do tipo de experimento
+class EscolhaExperimento extends StatelessWidget {
+  const EscolhaExperimento({super.key});
+
+  // CORREÇÃO: A função de navegação foi simplificada para não passar mais o caminho do PDF.
+  void _navigateToExperimento(BuildContext context, String title, Map<String, String> parametros) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExperimentoInputsPage(
+          title: title,
+          parametros: parametros,
+        ),
+      ),
+    );
+  }
 
   @override
-  State<ConectaBrokerPage> createState() => _ConectaBrokerPageState();
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Seleção de Experimento', style: TextStyle(color: Colors.white)),
+        backgroundColor: theme.primaryColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // CORREÇÃO: O caminho do PDF foi removido da chamada do botão.
+                _buildExperimentoButton(
+                  context,
+                  'Malha Aberta e Malha Fechada',
+                  {
+                    'observadorKe': 'Observador Ke',
+                    'reguladorK': 'Regulador K',
+                    'nx': 'nx',
+                    'nu': 'nu',
+                  },
+                ),
+                const SizedBox(height: 40),
+                _buildExperimentoButton(
+                  context,
+                  'Sistemas de 1ª e 2ª ordem',
+                  {
+                    'u_primeiraOrdem': 'u - 1ª ordem',
+                    'kp_segundaOrdem': 'Kp - 2ª ordem',
+                    'tetaref_segundaOrdem': 'Tetaref - 2ª ordem',
+                    'erro_segundaOrdem': 'Erro - 2ª ordem',
+                    'u_segundaOrdem': 'u - 2ª ordem',
+                  },
+                ),
+                const SizedBox(height: 40),
+                _buildExperimentoButton(
+                  context,
+                  'Sistemas Instáveis em MA',
+                  {
+                    'teta_proporcional': 'Teta proporcional',
+                    'kp_proporcional': 'Kp proporcional',
+                    'teta_leadLag': 'Teta lead-lag',
+                    'k_leadLag': 'K lead-lag',
+                    'a_leadLag': 'a lead-lag',
+                    'b_leadLag': 'b lead-lag',
+                    'td_leadLag': 'td lead-lag',
+                  },
+                ),
+                const SizedBox(height: 40),
+                _buildExperimentoButton(
+                  context,
+                  'Controlador PID',
+                  {
+                    'sc_kp': 'SC - Kp', 'sc_kd': 'SC - Kd', 'sc_ki': 'SC - Ki', 'sc_tetaref': 'SC - tetaref', 'sc_erro': 'SC - erro', 'sc_up': 'SC - Up', 'sc_ui': 'SC - Ui', 'sc_ud': 'SC - Ud', 'sc_u': 'SC - U',
+                    'pid_kp': 'PID - Kp', 'pid_kd': 'PID - Kd', 'pid_ki': 'PID - Ki', 'pid_tetaref': 'PID - tetaref', 'pid_erro': 'PID - erro', 'pid_up': 'PID - Up', 'pid_ui': 'PID - Ui', 'pid_ud': 'PID - Ud', 'pid_u': 'PID - U'
+                  },
+                ),
+                const SizedBox(height: 40),
+                _buildExperimentoButton(
+                  context,
+                  'Resposta em Frequência',
+                  {
+                    'u_malhaAberta': 'u - malha aberta',
+                    'omegaRef_malhaFechada': 'Omegaref - malha fechada',
+                    'erro_malhaFechada': 'erro - malha fechada',
+                    'u_malhaFechada': 'u - malha fechada',
+                    'erroK_compensador': 'erroK - compensador',
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExperimentoButton(BuildContext context, String title, Map<String, String> parametros) {
+    return ElevatedButton(
+      onPressed: () => _navigateToExperimento(context, title, parametros),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 60),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        textStyle: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      child: Text(title, textAlign: TextAlign.center),
+    );
+  }
 }
 
-class BrokerInfo {
-  static final BrokerInfo instance = BrokerInfo._internal();
-  factory BrokerInfo() => instance;
-  BrokerInfo._internal();
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  MqttServerClient? client;
-  String ip = '';
-  int porta = 1883;
-  String usuario = '';
-  String senha = '';
-  bool credenciais = true;
-  String status = 'Desconectado';
-  ValueNotifier<String?> streamUrl = ValueNotifier<String?>(null);
 
-  Future<void> connect({
-    required String ip,
-    required int porta,
-    required String usuario,
-    required String senha,
-    required bool credenciais,
-  }) async {
+// Tela 2: Entrada dos dados do experimento
+class ExperimentoInputsPage extends StatefulWidget {
+  final String title;
+  final Map<String, String> parametros;
+  
+  // CORREÇÃO: A propriedade pdfAssetPath foi removida.
+  const ExperimentoInputsPage({
+    super.key,
+    required this.title,
+    required this.parametros,
+  });
+
+  @override
+  State<ExperimentoInputsPage> createState() => _ExperimentoInputsPageState();
+}
+
+class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
+  final Map<String, TextEditingController> _controllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (var topic in widget.parametros.keys) {
+      _controllers[topic] = TextEditingController();
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _showError(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title, style: const TextStyle(color: Colors.red)),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _enviarDados() async {
+    final broker = BrokerInfo.instance;
+
+    if (broker.client == null || broker.client!.connectionStatus!.state != MqttConnectionState.connected) {
+      _showError('Não Conectado', 'Volte para a tela anterior e conecte-se ao broker primeiro.');
+      return;
+    }
+
+    final Map<String, String> dataToSend = {};
+    for (var entry in widget.parametros.entries) {
+      final topic = entry.key;
+      final label = entry.value;
+      final text = _controllers[topic]!.text;
+
+      if (text.isEmpty) {
+        _showError('Campos Vazios', 'Por favor, preencha o campo "$label" antes de enviar.');
+        return;
+      }
+      
+      final RegExp invalidCharPattern = RegExp(r'[^0-9\.\,\-]');
+      if (invalidCharPattern.hasMatch(text)) {
+        _showError('Caracteres Inválidos', 'O campo "$label" contém letras ou símbolos não permitidos. Use apenas números.');
+        return;
+      }
+      
+      try {
+        final doubleValue = double.parse(text.replaceAll(',', '.'));
+        dataToSend[topic] = doubleValue.toString();
+      } catch (e) {
+        _showError('Formato Inválido', 'O valor no campo "$label" não é um número válido (ex: "1.2.3"). Por favor, corrija o formato.');
+        return;
+      }
+    }
+
     try {
-      this.ip = ip;
-      this.porta = porta;
-      this.usuario = usuario;
-      this.senha = senha;
-      this.credenciais = credenciais;
-
-      client = MqttServerClient(ip, 'flutter_client');
-      client!
-        ..port = porta
-        ..logging(on: false)
-        ..keepAlivePeriod = 30
-        ..autoReconnect = true
-        ..resubscribeOnAutoReconnect = true
-        ..onConnected = _onConnected
-        ..onDisconnected = _onDisconnected;
-
-      if (credenciais) {
-        await client!.connect(usuario, senha);
-      } else {
-        await client!.connect(null, null);
-      }
-
-      if (client!.connectionStatus!.state == MqttConnectionState.connected) {
-        status = 'Conectado';
+      
+      for (var entry in dataToSend.entries) {
+        final topic = entry.key;
+        final message = entry.value;
+        final builder = MqttClientPayloadBuilder()..addString(message);
         
-        _subscribeToTopics();
+        broker.client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+        
       }
-    } catch (e) {
-      status = 'Erro de conexão';
-      _showErrorDialog('Erro: ${e.toString()}');
-    }
-  }
 
-  Future<void> disconnect() async {
-    client?.disconnect();
-    status = 'Desconectado';
-    streamUrl.value = null;
-    navigatorKey.currentState?.popUntil((route) => route.isFirst);
-  }
-
-  void _onConnected() {
-    status = 'Conectado';
-  }
-
-  void _onDisconnected() {
-    status = 'Desconectado';
-  }
-
-  void _subscribeToTopics() {
-    client?.subscribe('observadorKe', MqttQos.atLeastOnce);
-    client?.subscribe('reguladorK', MqttQos.atLeastOnce);
-    client?.subscribe('nx', MqttQos.atLeastOnce);
-    client?.subscribe('nu', MqttQos.atLeastOnce);
-    client?.subscribe('streamExperimento', MqttQos.atLeastOnce);
-
-    client?.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-      for (var msg in messages) {
-        final topic = msg.topic;
-        final payload = msg.payload as MqttPublishMessage;
-        final message = MqttPublishPayload.bytesToStringAsString(payload.payload.message);
-
-        if (topic == 'streamExperimento') {
-          streamUrl.value = message;
-        }
-      }
-    });
-  }
-
-
-
-  void publish(String topic, String message) {
-    if (client?.connectionStatus?.state == MqttConnectionState.connected) {
-      _publishMessage(topic, message);
-    }
-  }
-
-  void _publishMessage(String topic, String message) {
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(message);
-    client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-  }
-
-  void _showErrorDialog(String message) {
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (context) => AlertDialog(
-          title: const Text('Erro'),
-          content: Text(message),
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Sucesso!'),
+          content: const Text('Dados enviados com sucesso para o Broker!'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -129,101 +235,25 @@ class BrokerInfo {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ConectaBrokerPageState extends State<ConectaBrokerPage> {
-  final TextEditingController ipController = TextEditingController();
-  final TextEditingController portaController = TextEditingController(text: '1883');
-  final TextEditingController usuarioController = TextEditingController();
-  final TextEditingController senhaController = TextEditingController();
-  final BrokerInfo brokerInfo = BrokerInfo.instance;
-
-  @override
-  void dispose() {
-    ipController.dispose();
-    portaController.dispose();
-    usuarioController.dispose();
-    senhaController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _connect() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none) {
-      _showDialog('Erro!', 'Sem conexão com a internet');
-      return;
-    }
-
-    try {
-      await brokerInfo.connect(
-        ip: ipController.text.trim(),
-        porta: int.tryParse(portaController.text.trim()) ?? 1883,
-        usuario: usuarioController.text.trim(),
-        senha: senhaController.text.trim(),
-        credenciais: brokerInfo.credenciais,
       );
-
-      if (brokerInfo.status == 'Conectado') {
-        _showDialog('Sucesso!', 'Conectado ao broker com sucesso', onOk: () {
-          final homeState = context.findAncestorStateOfType<HomeScreenState>();
-          homeState?.setState(() => homeState.currentIndex = 2);
-        });
-      }
     } catch (e) {
-      _showDialog('Erro', 'Falha na conexão: $e');
+      
+      _showError('Erro de Envio', 'Ocorreu um erro ao enviar os dados para o broker: $e');
     }
-    setState(() {});
   }
 
-  Future<void> _disconnect() async {
-    await brokerInfo.disconnect();
-    _showDialog('Desconectado', 'Você foi desconectado do broker.');
-    setState(() {});
-  }
-
-  void _showDialog(String title, String message, {VoidCallback? onOk}) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (onOk != null) onOk();
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmClearAll() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Limpar Dados'),
-        content: const Text('Tem certeza que deseja limpar e voltar ao início?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () {
-              ipController.clear();
-              portaController.clear();
-              usuarioController.clear();
-              senhaController.clear();
-              brokerInfo.disconnect();
-              Navigator.pop(context);
-              final homeState = context.findAncestorStateOfType<HomeScreenState>();
-              homeState?.setState(() => homeState.currentIndex = 0);
-            },
-            child: const Text('Confirmar'),
-          ),
+  Widget _buildTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          icon: Icon(Icons.tune, color: Theme.of(context).primaryColor),
+          labelText: label,
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[\d\.\,\-]*')), // Permite números, ponto, vírgula e sinal de menos
         ],
       ),
     );
@@ -233,134 +263,89 @@ class _ConectaBrokerPageState extends State<ConectaBrokerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Informações do Broker'),
-        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(icon: const Icon(Icons.close), onPressed: _confirmClearAll),
-        ],
-      ),
-      drawer: _buildDrawer(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (brokerInfo.status == 'Conectado') ...[
-              Center(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.7,
-                      height: 140,
-                      child: Lottie.asset('assets/TudoCerto.json'),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Conectado ao broker!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-                ),
-              ),
-            ],
-            TextFormField(
-              controller: ipController,
-              decoration: const InputDecoration(
-                icon: Icon(Icons.router),
-                labelText: 'IP do Broker',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: portaController,
-              decoration: const InputDecoration(
-                icon: Icon(Icons.door_front_door),
-                labelText: 'Porta',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Text('Usa credenciais?'),
-                Switch(
-                  value: brokerInfo.credenciais,
-                  onChanged: (v) => setState(() => brokerInfo.credenciais = v),
-                  activeColor: const Color.fromRGBO(19, 85, 156, 1),
-                ),
-              ],
-            ),
-            if (brokerInfo.credenciais) ...[
-              TextFormField(
-                controller: usuarioController,
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.badge),
-                  labelText: 'Usuário',
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: senhaController,
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.lock),
-                  labelText: 'Senha',
-                ),
-                obscureText: true,
-              ),
-            ],
-            const SizedBox(height: 50),
-            ElevatedButton(
-              onPressed: brokerInfo.status == 'Conectado' ? _disconnect : _connect,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: brokerInfo.status == 'Conectado'
-                    ? Colors.red
-                    : const Color.fromRGBO(19, 85, 156, 1),
-                minimumSize: const Size.fromHeight(55),
-              ),
-              child: Text(
-                brokerInfo.status == 'Conectado' ? 'Desconectar' : 'Conectar',
-                style: const TextStyle(fontSize: 18, color: Colors.white),
-              ),
-            ),
-          ],
+        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).primaryColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
+      
+      floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                // CORREÇÃO: Navega para a nova página de ajuda em branco.
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HelpPage(
+                      helpTitle: 'Ajuda: ${widget.title}',
+                    ),
+                  ),
+                );
+              },
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              tooltip: 'Ajuda',
+              child: const Icon(Icons.question_mark),
+            ),
+      body: SingleChildScrollView(
+              padding: const EdgeInsets.all(25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 20),
+                  ...widget.parametros.entries.map((entry) {
+                    final topic = entry.key;
+                    final label = entry.value;
+                    return _buildTextField(label, _controllers[topic]!);
+                  }),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    onPressed: _enviarDados,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(55),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Enviar dados do Experimento',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
+}
 
-  Widget _buildDrawer() {
-    return Drawer(
-      backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const SizedBox(height: 80),
-          _buildStatusRow(),
-          _buildInfoRow(Icons.router, 'IP', brokerInfo.ip),
-          _buildInfoRow(Icons.door_front_door, 'Porta', '${brokerInfo.porta}'),
-          if (brokerInfo.credenciais) _buildInfoRow(Icons.person, 'Usuário', brokerInfo.usuario),
-          if (brokerInfo.credenciais) _buildInfoRow(Icons.lock, 'Senha', brokerInfo.senha),
-        ],
+
+// CORREÇÃO: Nova página de Ajuda, em branco, com uma AppBar.
+class HelpPage extends StatelessWidget {
+  final String helpTitle;
+
+  const HelpPage({
+    super.key, 
+    required this.helpTitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(helpTitle, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Theme.of(context).primaryColor,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
-    );
-  }
-
-  Widget _buildStatusRow() {
-    return ListTile(
-      leading: Icon(brokerInfo.status == 'Conectado' ? Icons.cloud_done : Icons.cloud_off,
-          color: Colors.white),
-      title: Text('Status: ${brokerInfo.status}', style: const TextStyle(color: Colors.white)),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text('$label: $value', style: const TextStyle(color: Colors.white)),
+      body: const Center(
+        // Corpo em branco, como solicitado.
+      ),
     );
   }
 }

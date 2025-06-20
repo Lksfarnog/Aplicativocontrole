@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'dadosintegrante.dart'; 
+import 'dart:async'; // Required for Timer
+import 'dadosintegrante.dart'; // Assuming HomeScreen is defined here
 
 void main() {
   runApp(const MyApp());
@@ -24,111 +25,80 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class StartScreen extends StatelessWidget {
+// Convert StartScreen to a StatefulWidget
+class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
+
+  @override
+  State<StartScreen> createState() => _StartScreenState();
+}
+
+class _StartScreenState extends State<StartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Start a timer for 5 seconds
+    Timer(const Duration(seconds: 5), () {
+      // Navigate to HomeScreen after 5 seconds
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const UnifiedScreen()),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 30),
+              const Text(
+                'Aplicações Práticas de',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16.0),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Image.asset('assets/LogoFEMEC.JPG', width: 90, height: 90),
-                    const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Laboratório de',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
-                        SizedBox(height: 5),
-                        Text('Controle Linear',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
-                      ],
-                    ),
-                    Image.asset('assets/LogoUFU.PNG', width: 80, height: 80),
-                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 50),
-            const Text('Experimento 7',
+              const Text(
+                'Controle Linear',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
-            const Text('Espaço de Estados',
-                style: TextStyle(
-                    fontSize: 35,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
-            const SizedBox(height: 115),
-            Container(
-              width: 220,
-              height: 220,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                  fontSize: 35,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-              child: LottieBuilder.asset(
-                'assets/Tanque.json',
+              const SizedBox(height: 150),
+              LottieBuilder.asset(
+                'assets/InicioIoT.json',
                 fit: BoxFit.contain,
               ),
-            ),
-            const SizedBox(height: 100),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color.fromARGB(255, 15, 220, 22),
-                minimumSize: const Size(280, 60),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15)),
-                elevation: 20,
-                shadowColor: Colors.black.withOpacity(0.1),
+              const Spacer(),
+              LottieBuilder.asset(
+                'assets/loading_bar.json',
+                width: 150,
+                height: 150,
+                fit: BoxFit.contain,
               ),
-              child: const Text('Iniciar',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25)),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset('assets/LogoFEMEC.JPG', width: 60, height: 60),
+                  const SizedBox(width: 20),
+                  Image.asset('assets/LogoUFU.PNG', width: 55, height: 55),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
