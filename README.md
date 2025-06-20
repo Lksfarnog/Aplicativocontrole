@@ -1,7 +1,7 @@
-Tópicos MQTT para cada Experimento
-Aqui estão os tópicos que serão publicados no broker para cada tipo de experimento selecionado.
+# Tópicos MQTT para cada Experimento
 
-1. Malha Aberta e Malha Fechada
+
+# 1. Malha Aberta e Malha Fechada
 
 observadorKe
 
@@ -11,7 +11,7 @@ nx
 
 nu
 
-2. Sistemas de 1ª e 2ª ordem
+# 2. Sistemas de 1ª e 2ª ordem
 
 u_primeiraOrdem
 
@@ -23,7 +23,7 @@ erro_segundaOrdem
 
 u_segundaOrdem
 
-3. Sistemas Instáveis em MA
+# 3. Sistemas Instáveis em MA
 
 teta_proporcional
 
@@ -39,13 +39,13 @@ b_leadLag
 
 td_leadLag
 
-4. Controlador PID
+# 4. Controlador PID
 
 sc_kp, sc_kd, sc_ki, sc_tetaref, sc_erro, sc_up, sc_ui, sc_ud, sc_u
 
 pid_kp, pid_kd, pid_ki, pid_tetaref, pid_erro, pid_up, pid_ui, pid_ud, pid_u
 
-5. Resposta em Frequência
+# 5. Resposta em Frequência
 
 u_malhaAberta
 
