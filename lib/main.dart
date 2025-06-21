@@ -38,7 +38,7 @@ class _StartScreenState extends State<StartScreen> {
   void initState() {
     super.initState();
     // Start a timer for 5 seconds
-    Timer(const Duration(seconds: 5), () {
+    Timer(const Duration(seconds: 8), () {
       // Navigate to HomeScreen after 5 seconds
       Navigator.pushReplacement(
         context,

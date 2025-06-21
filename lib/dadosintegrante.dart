@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,7 +29,7 @@ class MyApp extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           elevation: 0,
           backgroundColor: primaryBlue,
-          foregroundColor: Colors.white, 
+          foregroundColor: Colors.white,
           titleTextStyle: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
@@ -42,7 +40,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// --- SINGLETON PARA INFORMAÇÕES DO BROKER ---
 class BrokerInfo {
   static final BrokerInfo instance = BrokerInfo._internal();
   factory BrokerInfo() => instance;
@@ -65,7 +62,6 @@ class BrokerInfo {
     required String senha,
     required bool credenciais,
     required VoidCallback onStateChange,
-    required Function(String, String) showError,
   }) async {
     try {
       this.ip = ip;
@@ -82,13 +78,13 @@ class BrokerInfo {
         ..autoReconnect = true
         ..resubscribeOnAutoReconnect = true
         ..onConnected = () {
-            status = 'Conectado';
-            onStateChange();
-          }
+          status = 'Conectado';
+          onStateChange();
+        }
         ..onDisconnected = () {
-            status = 'Desconectado';
-            onStateChange();
-          };
+          status = 'Desconectado';
+          onStateChange();
+        };
 
       if (credenciais) {
         await client!.connect(usuario, senha);
@@ -98,21 +94,14 @@ class BrokerInfo {
 
       if (client!.connectionStatus!.state == MqttConnectionState.connected) {
         status = 'Conectado';
-        _subscribeToTopics();
+        
       }
     } on NoConnectionException catch (_) {
       status = 'Erro de conexão';
-      showError('Falha na Conexão', 'Não foi possível se conectar ao broker. Verifique o IP e a Porta e tente novamente.');
     } on SocketException catch (_) {
       status = 'Erro de conexão';
-      showError('Falha na Rede', 'Erro de comunicação. Verifique o IP do broker e sua conexão de rede.');
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       status = 'Erro de conexão';
-      if (e.toString().toLowerCase().contains('bad user name or password')) {
-        showError('Falha na Autenticação', 'Usuário ou senha incorretos.');
-      } else {
-        showError('Erro Desconhecido', 'Ocorreu um erro inesperado durante a tentativa de conexão.');
-      }
     } finally {
       onStateChange();
     }
@@ -125,28 +114,8 @@ class BrokerInfo {
     onStateChange();
   }
 
-  void _subscribeToTopics() {
-    client?.subscribe('observadorKe', MqttQos.atLeastOnce);
-    client?.subscribe('reguladorK', MqttQos.atLeastOnce);
-    client?.subscribe('nx', MqttQos.atLeastOnce);
-    client?.subscribe('nu', MqttQos.atLeastOnce);
-    client?.subscribe('streamExperimento', MqttQos.atLeastOnce);
-
-    client?.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-      for (var msg in messages) {
-        final topic = msg.topic;
-        final payload = msg.payload as MqttPublishMessage;
-        final message =
-            MqttPublishPayload.bytesToStringAsString(payload.payload.message);
-
-        if (topic == 'streamExperimento') {
-          streamUrl.value = message;
-        }
-      }
-    });
-  }
+  
 }
-
 
 class UnifiedScreen extends StatefulWidget {
   const UnifiedScreen({super.key});
@@ -156,16 +125,11 @@ class UnifiedScreen extends StatefulWidget {
 }
 
 class _UnifiedScreenState extends State<UnifiedScreen> {
-
   final List<TextEditingController> nameControllers =
       List.generate(6, (_) => TextEditingController());
   final List<TextEditingController> matriculaControllers =
       List.generate(6, (_) => TextEditingController());
-  final TextEditingController dayCtrl = TextEditingController();
-  final TextEditingController monthCtrl = TextEditingController();
-  final TextEditingController yearCtrl = TextEditingController();
-
-
+  
   final TextEditingController ipController = TextEditingController();
   final TextEditingController portaController =
       TextEditingController(text: '1883');
@@ -180,9 +144,6 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     for (var c in [
       ...nameControllers,
       ...matriculaControllers,
-      dayCtrl,
-      monthCtrl,
-      yearCtrl,
       ipController,
       portaController,
       usuarioController,
@@ -192,7 +153,6 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     }
     super.dispose();
   }
-
 
   void _onAddMember() {
     if (currentCount < 6) {
@@ -213,53 +173,27 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
       currentCount--;
     });
   }
-  
-  void _confirmClearAll() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Limpar Tudo'),
-        content: const Text(
-            'Tem certeza que deseja apagar todos os dados preenchidos?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                for (var c in [
-                  ...nameControllers,
-                  ...matriculaControllers,
-                  dayCtrl,
-                  monthCtrl,
-                  yearCtrl,
-                  ipController,
-                  portaController,
-                  usuarioController,
-                  senhaController,
-                ]) {
-                  c.clear();
-                }
-                portaController.text = '1883';
-                currentCount = 1;
-              });
-              Navigator.pop(context);
-            },
-            child: Text('Confirmar',
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ),
-        ],
-      ),
-    );
-  }
 
+  void _clearAllFields() {
+    setState(() {
+      for (var c in [
+        ...nameControllers,
+        ...matriculaControllers,
+        ipController,
+        portaController,
+        usuarioController,
+        senhaController,
+      ]) {
+        c.clear();
+      }
+      portaController.text = '1883';
+      currentCount = 1;
+    });
+  }
 
   Future<void> _connect() async {
     final connectivity = await Connectivity().checkConnectivity();
     if (connectivity == ConnectivityResult.none && mounted) {
-      _showDialog('Sem Internet', 'Por favor, verifique sua conexão com a internet e tente novamente.');
       return;
     }
 
@@ -270,33 +204,19 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
       senha: senhaController.text.trim(),
       credenciais: brokerInfo.credenciais,
       onStateChange: () => setState(() {}),
-
-      showError: _showDialog,
     );
   }
 
-  Future<void> _disconnect() async {
-    await brokerInfo.disconnect(onStateChange: () => setState(() {}));
-    _showDialog('Desconectado', 'Você foi desconectado do broker.');
+  Future<void> _advanceToBroker() async {
+    await _connect();
+    if (mounted) {
+       Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const EscolhaExperimento()),
+      );
+    }
   }
-
-  void _showDialog(String title, String message) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
@@ -304,97 +224,116 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: theme.primaryColor,
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         leading: IconButton(
           icon: const Icon(Icons.delete_outline),
           color: Colors.white,
           tooltip: 'Limpar todos os dados',
-          onPressed: _confirmClearAll,
+          onPressed: _clearAllFields,
         ),
         title: const Text(
           'Dados e Conexão',
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.arrow_forward),
-            color: Colors.white,
-            tooltip: 'Avançar',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const EscolhaExperimento()),
-              );
-            },
-          ),
-        ],
+        actions: const [],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Seção Broker ---
-            _buildSectionHeader('Conexão com Broker', theme),
-            const SizedBox(height: 16),
-            if (isConnected)
-              Center(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 150,
-                      height: 120,
-                      child: Lottie.asset('assets/TudoCerto.json', repeat: false),
+            _buildSectionContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   _buildSectionHeader('Conexão com Broker', theme),
+                  const SizedBox(height: 16),
+                  if (isConnected)
+                    Center(
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: 150,
+                            height: 120,
+                            child: Lottie.asset('assets/TudoCerto.json', repeat: false),
+                          ),
+                          const Text('Conectado!',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
-                    const Text('Conectado!',
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            _buildBrokerInputs(theme),
+                  _buildBrokerInputs(theme),
+                ],
+              )
+            ),
             const SizedBox(height: 24),
-
-            const Divider(height: 32, thickness: 1),
-
-
-            _buildSectionHeader('Integrantes do Grupo', theme),
-            const SizedBox(height: 8),
-            ...List.generate(currentCount, (i) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: _buildMemberInputs(i, theme),
-              );
-            }),
-            const SizedBox(height: 24),
-
-
-            _buildSectionHeader('Data do Experimento', theme),
-            const SizedBox(height: 8),
-            _buildDateInputs(theme),
+            _buildSectionContainer(
+              child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Integrantes do Grupo', theme),
+                  const SizedBox(height: 8),
+                  ...List.generate(currentCount, (i) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: _buildMemberInputs(i, theme),
+                    );
+                  }),
+                ],
+              )
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: isConnected ? _disconnect : _connect,
-        tooltip: isConnected ? 'Desconectar' : 'Conectar ao Broker',
-        backgroundColor: isConnected ? Colors.redAccent : theme.primaryColor,
-        foregroundColor: Colors.white,
-        child: Icon(isConnected ? Icons.cloud_off : Icons.cloud_upload_outlined),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: _advanceToBroker,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Conectar e Avançar',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }
 
+  Widget _buildSectionContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: const Color.fromRGBO(19, 85, 156, 1).withOpacity(0.3),
+          width: 1.5,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
+
   Widget _buildSectionHeader(String title, ThemeData theme) {
-    return Text(
-      title,
-      style: theme.textTheme.titleLarge?.copyWith(
-        color: theme.colorScheme.primary,
-        fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        title,
+        style: theme.textTheme.titleLarge?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -438,7 +377,7 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         TextFormField(
           controller: nameControllers[i],
           decoration: _inputDecoration('Nome Completo', theme),
@@ -455,6 +394,8 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
   }
 
   Widget _buildBrokerInputs(ThemeData theme) {
+    bool areCredentialsEnabled = brokerInfo.credenciais;
+
     return Column(
       children: [
         TextFormField(
@@ -468,70 +409,65 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
           decoration: _inputDecoration('Porta', theme),
           keyboardType: TextInputType.number,
         ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ChoiceChip(
+              label: const Text('Sem Credenciais'),
+              selected: !areCredentialsEnabled,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    brokerInfo.credenciais = false;
+                    usuarioController.clear();
+                    senhaController.clear();
+                  });
+                }
+              },
+              selectedColor: theme.primaryColor.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: !areCredentialsEnabled ? theme.primaryColor : Colors.black87,
+                fontWeight: !areCredentialsEnabled ? FontWeight.bold : FontWeight.normal
+              ),
+               side: BorderSide(
+                color: !areCredentialsEnabled ? theme.primaryColor : Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(width: 16),
+            ChoiceChip(
+              label: const Text('Com Credenciais'),
+              selected: areCredentialsEnabled,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    brokerInfo.credenciais = true;
+                  });
+                }
+              },
+              selectedColor: theme.primaryColor.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: areCredentialsEnabled ? theme.primaryColor : Colors.black87,
+                fontWeight: areCredentialsEnabled ? FontWeight.bold : FontWeight.normal
+              ),
+              side: BorderSide(
+                color: areCredentialsEnabled ? theme.primaryColor : Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
-        SwitchListTile(
-          title: const Text("Usar credenciais?"),
-          value: brokerInfo.credenciais,
-          onChanged: (value) => setState(() => brokerInfo.credenciais = value),
-          activeColor: theme.primaryColor,
-          contentPadding: EdgeInsets.zero,
+        TextFormField(
+          enabled: areCredentialsEnabled,
+          controller: usuarioController,
+          decoration: _inputDecoration('Usuário', theme),
         ),
-        if (brokerInfo.credenciais) ...[
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: usuarioController,
-            decoration: _inputDecoration('Usuário', theme),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: senhaController,
-            decoration: _inputDecoration('Senha', theme),
-            obscureText: true,
-          ),
-        ]
-      ],
-    );
-  }
-
-  Widget _buildDateInputs(ThemeData theme) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: dayCtrl,
-            decoration: _inputDecoration('Dia', theme),
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(2)
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: TextFormField(
-            controller: monthCtrl,
-            decoration: _inputDecoration('Mês', theme),
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(2)
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 2,
-          child: TextFormField(
-            controller: yearCtrl,
-            decoration: _inputDecoration('Ano', theme),
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(4)
-            ],
-          ),
+        const SizedBox(height: 16),
+        TextFormField(
+          enabled: areCredentialsEnabled,
+          controller: senhaController,
+          decoration: _inputDecoration('Senha', theme),
+          obscureText: true,
         ),
       ],
     );
@@ -550,10 +486,10 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
       focusedBorder: UnderlineInputBorder(
         borderSide: BorderSide(color: theme.primaryColor, width: 2),
       ),
+      disabledBorder: UnderlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
     );
   }
 }
-
-
-

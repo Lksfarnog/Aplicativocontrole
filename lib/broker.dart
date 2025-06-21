@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'pagina_pdf.dart';
-import 'dadosintegrante.dart';
+import 'package:pdfx/pdfx.dart';
+import 'dadosintegrante.dart'; 
 
 // Tela 1: Escolha do tipo de experimento
 class EscolhaExperimento extends StatelessWidget {
   const EscolhaExperimento({super.key});
 
-  // CORREÇÃO: A função de navegação foi simplificada para não passar mais o caminho do PDF.
-  void _navigateToExperimento(BuildContext context, String title, Map<String, String> parametros) {
+  // CORREÇÃO: A função de navegação agora também aceita o caminho do PDF
+  void _navigateToExperimento(BuildContext context, String title, Map<String, String> parametros, String pdfAssetPath) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ExperimentoInputsPage(
           title: title,
           parametros: parametros,
+          // E passa o caminho do PDF para a próxima tela
+          pdfAssetPath: pdfAssetPath,
         ),
       ),
     );
@@ -23,8 +25,6 @@ class EscolhaExperimento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Seleção de Experimento', style: TextStyle(color: Colors.white)),
@@ -42,16 +42,17 @@ class EscolhaExperimento extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // CORREÇÃO: O caminho do PDF foi removido da chamada do botão.
+                // CORREÇÃO: Adicionado o caminho do PDF para cada botão
                 _buildExperimentoButton(
                   context,
                   'Malha Aberta e Malha Fechada',
                   {
-                    'observadorKe': 'Observador Ke',
-                    'reguladorK': 'Regulador K',
-                    'nx': 'nx',
-                    'nu': 'nu',
+                    'uMA': 'U Malha aberta',
+                    'refMF': 'Referência Malha Fechada',
+                    'erroMF': 'Erro Malha Fechada',
+                    'uMF': 'U Malha Fechada',
                   },
+                  'assets/pdfs/malha_aberta.pdf', // PDF correspondente
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -64,6 +65,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'erro_segundaOrdem': 'Erro - 2ª ordem',
                     'u_segundaOrdem': 'u - 2ª ordem',
                   },
+                  'assets/pdfs/sistemas_ordem.pdf', // PDF correspondente
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -78,6 +80,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'b_leadLag': 'b lead-lag',
                     'td_leadLag': 'td lead-lag',
                   },
+                  'assets/pdfs/sistemas_instaveis.pdf', // PDF correspondente
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -87,6 +90,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'sc_kp': 'SC - Kp', 'sc_kd': 'SC - Kd', 'sc_ki': 'SC - Ki', 'sc_tetaref': 'SC - tetaref', 'sc_erro': 'SC - erro', 'sc_up': 'SC - Up', 'sc_ui': 'SC - Ui', 'sc_ud': 'SC - Ud', 'sc_u': 'SC - U',
                     'pid_kp': 'PID - Kp', 'pid_kd': 'PID - Kd', 'pid_ki': 'PID - Ki', 'pid_tetaref': 'PID - tetaref', 'pid_erro': 'PID - erro', 'pid_up': 'PID - Up', 'pid_ui': 'PID - Ui', 'pid_ud': 'PID - Ud', 'pid_u': 'PID - U'
                   },
+                  'assets/pdfs/controlador_pid.pdf', // PDF correspondente
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -99,6 +103,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'u_malhaFechada': 'u - malha fechada',
                     'erroK_compensador': 'erroK - compensador',
                   },
+                  'assets/pdfs/resposta_frequencia.pdf', // PDF correspondente
                 ),
               ],
             ),
@@ -108,9 +113,9 @@ class EscolhaExperimento extends StatelessWidget {
     );
   }
 
-  Widget _buildExperimentoButton(BuildContext context, String title, Map<String, String> parametros) {
+  Widget _buildExperimentoButton(BuildContext context, String title, Map<String, String> parametros, String pdfAssetPath) {
     return ElevatedButton(
-      onPressed: () => _navigateToExperimento(context, title, parametros),
+      onPressed: () => _navigateToExperimento(context, title, parametros, pdfAssetPath),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         foregroundColor: Colors.white,
@@ -134,12 +139,14 @@ class EscolhaExperimento extends StatelessWidget {
 class ExperimentoInputsPage extends StatefulWidget {
   final String title;
   final Map<String, String> parametros;
-  
-  // CORREÇÃO: A propriedade pdfAssetPath foi removida.
+  // CORREÇÃO: Adicionada a propriedade para receber o caminho do PDF
+  final String pdfAssetPath;
+
   const ExperimentoInputsPage({
     super.key,
     required this.title,
     required this.parametros,
+    required this.pdfAssetPath, // Tornando-a obrigatória no construtor
   });
 
   @override
@@ -196,13 +203,13 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         _showError('Campos Vazios', 'Por favor, preencha o campo "$label" antes de enviar.');
         return;
       }
-      
+
       final RegExp invalidCharPattern = RegExp(r'[^0-9\.\,\-]');
       if (invalidCharPattern.hasMatch(text)) {
         _showError('Caracteres Inválidos', 'O campo "$label" contém letras ou símbolos não permitidos. Use apenas números.');
         return;
       }
-      
+
       try {
         final doubleValue = double.parse(text.replaceAll(',', '.'));
         dataToSend[topic] = doubleValue.toString();
@@ -213,16 +220,12 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
     }
 
     try {
-      
       for (var entry in dataToSend.entries) {
         final topic = entry.key;
         final message = entry.value;
         final builder = MqttClientPayloadBuilder()..addString(message);
-        
         broker.client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-        
       }
-
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -237,7 +240,6 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         ),
       );
     } catch (e) {
-      
       _showError('Erro de Envio', 'Ocorreu um erro ao enviar os dados para o broker: $e');
     }
   }
@@ -253,7 +255,7 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[\d\.\,\-]*')), // Permite números, ponto, vírgula e sinal de menos
+          FilteringTextInputFormatter.allow(RegExp(r'[\d\.\,\-]')),
         ],
       ),
     );
@@ -270,55 +272,137 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      
       floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                // CORREÇÃO: Navega para a nova página de ajuda em branco.
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PdfPage(),
-                  ),
-                );
-              },
-              backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
-              foregroundColor: Colors.white,
-              tooltip: 'Ajuda',
-              child: const Icon(Icons.question_mark),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              // CORREÇÃO: Passa o caminho do PDF recebido para a sua tela de PDF
+              builder: (context) => PdfPage(pdfAssetPath: widget.pdfAssetPath),
             ),
+          );
+        },
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
+        foregroundColor: Colors.white,
+        tooltip: 'Ajuda',
+        child: const Icon(Icons.question_mark),
+      ),
       body: SingleChildScrollView(
-              padding: const EdgeInsets.all(25),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-                  ...widget.parametros.entries.map((entry) {
-                    final topic = entry.key;
-                    final label = entry.value;
-                    return _buildTextField(label, _controllers[topic]!);
-                  }),
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: _enviarDados,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(55),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Enviar dados do Experimento',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 20),
+            ...widget.parametros.entries.map((entry) {
+              final topic = entry.key;
+              final label = entry.value;
+              return _buildTextField(label, _controllers[topic]!);
+            }),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: _enviarDados,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(55),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Enviar dados do Experimento',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// Sua tela de PDF, agora modificada para receber o caminho do arquivo
+class PdfPage extends StatefulWidget {
+  final String pdfAssetPath;
 
+  const PdfPage({super.key, required this.pdfAssetPath});
 
+  @override
+  State<PdfPage> createState() => _PdfPageState();
+}
+
+class _PdfPageState extends State<PdfPage> {
+  late PdfControllerPinch pdfControllerPinch;
+  int contadorPaginas = 0, paginaAtual = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // CORREÇÃO: Usa o caminho do PDF recebido ao invés de um valor fixo
+    pdfControllerPinch = PdfControllerPinch(
+        document: PdfDocument.openAsset(widget.pdfAssetPath));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Embasamento Teórico",
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
+      ),
+      body: _buildUI(),
+    );
+  }
+
+  Widget _buildUI() {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text("Páginas: $contadorPaginas"),
+            IconButton(
+              onPressed: () {
+                pdfControllerPinch.previousPage(duration: const Duration(milliseconds: 500), curve: Curves.linear);
+              },
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Text("Página Atual: $paginaAtual"),
+            IconButton(
+              onPressed: () {
+                pdfControllerPinch.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.linear);
+              },
+              icon: const Icon(Icons.arrow_forward),
+            )
+          ],
+        ),
+        _pdfView(),
+      ],
+    );
+  }
+
+  Widget _pdfView() {
+    return Expanded(
+        child: PdfViewPinch(
+      scrollDirection: Axis.vertical,
+      controller: pdfControllerPinch,
+      onDocumentLoaded: (doc) {
+        setState(() {
+          contadorPaginas = doc.pagesCount;
+        });
+      },
+      onPageChanged: (page) {
+        setState(() {
+          paginaAtual = page;
+        });
+      },
+    ));
+  }
+}
