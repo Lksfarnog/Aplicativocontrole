@@ -303,7 +303,7 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
             ),
           ),
           child: const Text(
-            'Conectar e Avançar',
+            'Avançar',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
