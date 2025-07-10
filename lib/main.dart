@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:lottie/lottie.dart';
-import 'dart:async'; // Required for Timer
-import 'dadosintegrante.dart'; // Assuming HomeScreen is defined here
+import 'dadosintegrante.dart'; // Importa a tela principal
 
 void main() {
   runApp(const MyApp());
@@ -21,11 +21,12 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
       ),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-// Convert StartScreen to a StatefulWidget
+// Tela de Splash inicial
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
 
@@ -37,13 +38,13 @@ class _StartScreenState extends State<StartScreen> {
   @override
   void initState() {
     super.initState();
-    // Start a timer for 5 seconds
-    Timer(const Duration(seconds: 8), () {
-      // Navigate to HomeScreen after 5 seconds
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const UnifiedScreen()),
-      );
+    Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const UnifiedScreen()),
+        );
+      }
     });
   }
 
