@@ -2,25 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:pdfx/pdfx.dart';
-import 'dadosintegrante.dart'; 
+import 'dadosintegrante.dart';
+import 'malha_aberta_fechada_page.dart'; // Importa a nova página
 
 // Tela 1: Escolha do tipo de experimento
 class EscolhaExperimento extends StatelessWidget {
   const EscolhaExperimento({super.key});
 
-  // CORREÇÃO: A função de navegação agora também aceita o caminho do PDF
+  // ALTERADO: Esta função agora decide para qual tela navegar
   void _navigateToExperimento(BuildContext context, String title, Map<String, String> parametros, String pdfAssetPath) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ExperimentoInputsPage(
-          title: title,
-          parametros: parametros,
-          // E passa o caminho do PDF para a próxima tela
-          pdfAssetPath: pdfAssetPath,
+    if (title == 'Malha Aberta e Malha Fechada') {
+      // Navega para a página personalizada, passando o caminho do PDF
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MalhaAbertaFechadaPage(pdfAssetPath: pdfAssetPath),
         ),
-      ),
-    );
+      );
+    } else {
+      // Mantém o comportamento original para os outros experimentos
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ExperimentoInputsPage(
+            title: title,
+            parametros: parametros,
+            pdfAssetPath: pdfAssetPath,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -42,17 +53,18 @@ class EscolhaExperimento extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // CORREÇÃO: Adicionado o caminho do PDF para cada botão
                 _buildExperimentoButton(
                   context,
                   'Malha Aberta e Malha Fechada',
                   {
+                    // O mapa de parâmetros pode ser o original ou vazio,
+                    // pois a lógica de navegação o ignora para este caso.
                     'uMA': 'U Malha aberta',
                     'refMF': 'Referência Malha Fechada',
                     'erroMF': 'Erro Malha Fechada',
                     'uMF': 'U Malha Fechada',
                   },
-                  'assets/pdfs/malha_aberta.pdf', // PDF correspondente
+                  'assets/pdfs/malha_aberta.pdf', 
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -65,7 +77,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'erro_segundaOrdem': 'Erro - 2ª ordem',
                     'u_segundaOrdem': 'u - 2ª ordem',
                   },
-                  'assets/pdfs/sistemas_ordem.pdf', // PDF correspondente
+                  'assets/pdfs/sistemas_ordem.pdf',
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -80,7 +92,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'b_leadLag': 'b lead-lag',
                     'td_leadLag': 'td lead-lag',
                   },
-                  'assets/pdfs/sistemas_instaveis.pdf', // PDF correspondente
+                  'assets/pdfs/sistemas_instaveis.pdf',
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -90,7 +102,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'sc_kp': 'SC - Kp', 'sc_kd': 'SC - Kd', 'sc_ki': 'SC - Ki', 'sc_tetaref': 'SC - tetaref', 'sc_erro': 'SC - erro', 'sc_up': 'SC - Up', 'sc_ui': 'SC - Ui', 'sc_ud': 'SC - Ud', 'sc_u': 'SC - U',
                     'pid_kp': 'PID - Kp', 'pid_kd': 'PID - Kd', 'pid_ki': 'PID - Ki', 'pid_tetaref': 'PID - tetaref', 'pid_erro': 'PID - erro', 'pid_up': 'PID - Up', 'pid_ui': 'PID - Ui', 'pid_ud': 'PID - Ud', 'pid_u': 'PID - U'
                   },
-                  'assets/pdfs/controlador_pid.pdf', // PDF correspondente
+                  'assets/pdfs/controlador_pid.pdf',
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -103,7 +115,7 @@ class EscolhaExperimento extends StatelessWidget {
                     'u_malhaFechada': 'u - malha fechada',
                     'erroK_compensador': 'erroK - compensador',
                   },
-                  'assets/pdfs/resposta_frequencia.pdf', // PDF correspondente
+                  'assets/pdfs/resposta_frequencia.pdf',
                 ),
               ],
             ),
@@ -135,18 +147,17 @@ class EscolhaExperimento extends StatelessWidget {
 }
 
 
-// Tela 2: Entrada dos dados do experimento
+// Tela 2: A sua tela genérica original permanece aqui, intacta.
 class ExperimentoInputsPage extends StatefulWidget {
   final String title;
   final Map<String, String> parametros;
-  // CORREÇÃO: Adicionada a propriedade para receber o caminho do PDF
   final String pdfAssetPath;
 
   const ExperimentoInputsPage({
     super.key,
     required this.title,
     required this.parametros,
-    required this.pdfAssetPath, // Tornando-a obrigatória no construtor
+    required this.pdfAssetPath,
   });
 
   @override
@@ -277,7 +288,6 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              // CORREÇÃO: Passa o caminho do PDF recebido para a sua tela de PDF
               builder: (context) => PdfPage(pdfAssetPath: widget.pdfAssetPath),
             ),
           );
@@ -321,7 +331,7 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
   }
 }
 
-// Sua tela de PDF, agora modificada para receber o caminho do arquivo
+// Sua tela de PDF original permanece aqui.
 class PdfPage extends StatefulWidget {
   final String pdfAssetPath;
 
@@ -338,7 +348,6 @@ class _PdfPageState extends State<PdfPage> {
   @override
   void initState() {
     super.initState();
-    // CORREÇÃO: Usa o caminho do PDF recebido ao invés de um valor fixo
     pdfControllerPinch = PdfControllerPinch(
         document: PdfDocument.openAsset(widget.pdfAssetPath));
   }

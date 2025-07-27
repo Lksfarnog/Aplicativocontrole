@@ -5,12 +5,15 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
-import 'broker.dart';
-import 'ip_input_formatter.dart'; // Importa o novo formatador
+import 'broker.dart'; // Importa a classe BrokerInfo e EscolhaExperimento
+import 'ip_input_formatter.dart';
+import 'package:flutter/foundation.dart'; // Importa o formatador de IP
 
 // =================================================================
 // CLASSE SINGLETON PARA GERENCIAR O BROKER
 // =================================================================
+// Esta classe é um singleton para manter o estado da conexão MQTT
+// e os dados do broker persistentes em todo o aplicativo.
 class BrokerInfo {
   static final BrokerInfo instance = BrokerInfo._internal();
   factory BrokerInfo() => instance;
@@ -24,8 +27,24 @@ class BrokerInfo {
   bool credenciais = true;
   String status = 'Desconectado';
   ValueNotifier<String?> streamUrl = ValueNotifier<String?>(null);
+  // Variável para controlar se a mensagem de sucesso da conexão foi publicada
+  bool _publishedSuccessMessage = false;
 
-  // REQUERIMENTO 1 e 2: O método agora aceita um `clientId` e retorna um `bool`
+  final ValueNotifier<String> motorStatus = ValueNotifier<String>('Parado');
+  final ValueNotifier<double> velocidadeRpm = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> erroMF = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> uMF = ValueNotifier<double>(0.0);
+
+  // Getter para verificar se a mensagem de sucesso foi publicada
+  bool get publishedSuccessMessage => _publishedSuccessMessage;
+
+  // Método para resetar o estado da mensagem de sucesso (usado ao desconectar)
+  void resetPublishedSuccessMessage() {
+    _publishedSuccessMessage = false;
+  }
+
+  // Método para conectar ao broker MQTT
+  // Aceita um `clientId` e retorna um `bool` indicando o sucesso da conexão.
   Future<bool> connect({
     required String ip,
     required int porta,
@@ -35,6 +54,7 @@ class BrokerInfo {
     required String clientId, // O ID do cliente agora é um parâmetro
     required VoidCallback onStateChange,
   }) async {
+    // Armazena os dados de conexão para persistência
     this.ip = ip;
     this.porta = porta;
     this.usuario = usuario;
@@ -54,44 +74,98 @@ class BrokerInfo {
       ..autoReconnect = true
       ..onConnected = () {
         status = 'Conectado';
-        onStateChange();
+        onStateChange(); // Notifica a UI sobre a mudança de estado
       }
       ..onDisconnected = () {
         status = 'Desconectado';
-        onStateChange();
+        onStateChange(); // Notifica a UI sobre a mudança de estado
       };
 
     try {
-  if (credenciais) {
-    await client!.connect(usuario, senha);
-  } else {
-    await client!.connect();
+      if (credenciais) {
+        await client!.connect(usuario, senha);
+      } else {
+        await client!.connect();
+      }
+
+      if (client!.connectionStatus!.state == MqttConnectionState.connected) {
+        status = 'Conectado';
+        onStateChange();
+
+        // Publica a mensagem de sucesso
+        final builder = MqttClientPayloadBuilder()..addString('Conexão bem-sucedida!');
+        client!.publishMessage('conexao/status', MqttQos.atLeastOnce, builder.payload!);
+        _publishedSuccessMessage = true;
+
+        // ADICIONADO: Se inscreve nos tópicos de dados do ESP32
+        print('Inscrevendo-se nos tópicos de dados do motor...');
+        client!.subscribe('motor/status', MqttQos.atLeastOnce);
+        client!.subscribe('motor/velocidade', MqttQos.atLeastOnce);
+        client!.subscribe('uMF', MqttQos.atLeastOnce);
+        client!.subscribe('erroMF', MqttQos.atLeastOnce);
+
+        // ADICIONADO: Listener para processar as mensagens recebidas
+        client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+          // ignore: unnecessary_null_comparison
+          if (c != null && c.isNotEmpty) {
+            // ** INÍCIO DA CORREÇÃO **
+            // 1. Fazemos o "cast" para o tipo de mensagem correto (MqttPublishMessage)
+            final recMess = c[0].payload as MqttPublishMessage;
+            // 2. Extraímos o payload (conteúdo) da mensagem já convertida
+            final String payload = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+            // ** FIM DA CORREÇÃO **
+
+            final String topic = c[0].topic;
+
+          print('DADO RECEBIDO -> Tópico: $topic, Valor: $payload');
+
+          // Atualiza os ValueNotifiers com base no tópico
+          switch (topic) {
+            case 'motor/status':
+              motorStatus.value = payload;
+              break;
+            case 'motor/velocidade':
+              velocidadeRpm.value = double.tryParse(payload) ?? 0.0;
+              break;
+            case 'uMF':
+              uMF.value = double.tryParse(payload) ?? 0.0;
+              break;
+            case 'erroMF':
+              erroMF.value = double.tryParse(payload) ?? 0.0;
+              break;
+          }
+      }});
+
+        return true;
+      }
+    } on NoConnectionException catch (e) {
+      status = 'Erro de Conexão: Verifique o IP e a rede.\nDetalhes: $e';
+    } on SocketException catch (e) {
+      status = 'Erro de Socket: Verifique o IP, porta e firewall.\nDetalhes: $e';
+    } on Exception catch (e) {
+      status = 'Erro Desconhecido.\nDetalhes: $e';
+    } finally {
+      onStateChange(); // Garante que a UI seja atualizada no final
+    }
+    return false; // Falha na conexão
   }
 
-  if (client!.connectionStatus!.state == MqttConnectionState.connected) {
-    status = 'Conectado';
-    onStateChange();
-    return true;
-  }
-} on NoConnectionException catch (e) {
-  // Captura o erro específico
-  status = 'Erro de Conexão: Verifique o IP e a rede.\nDetalhes: $e'; 
-} on SocketException catch (e) {
-  // Captura o erro de socket, muito comum para "Connection Refused"
-  status = 'Erro de Socket: Verifique o IP, porta e firewall.\nDetalhes: $e';
-} on Exception catch (e) {
-  // Captura qualquer outro erro
-  status = 'Erro Desconhecido.\nDetalhes: $e';
-} finally {
-  onStateChange();
-}
-return false; // Falha
+  // Método para resetar os valores ao desconectar
+  void _resetDataNotifiers() {
+    motorStatus.value = 'Parado';
+    velocidadeRpm.value = 0.0;
+    erroMF.value = 0.0;
+    uMF.value = 0.0;
   }
 
+  // Método para desconectar do broker MQTT
+   // ALTERADO: Método disconnect para resetar os dados
   Future<void> disconnect({required VoidCallback onStateChange}) async {
     client?.disconnect();
     status = 'Desconectado';
     streamUrl.value = null;
+    _publishedSuccessMessage = false;
+    _resetDataNotifiers(); // Reseta os valores dos notifiers
     onStateChange();
   }
 }
@@ -99,6 +173,7 @@ return false; // Falha
 // =================================================================
 // TELA PRINCIPAL (DADOS E CONEXÃO)
 // =================================================================
+// Esta tela gerencia a entrada de dados do aluno e a conexão com o broker MQTT.
 class UnifiedScreen extends StatefulWidget {
   const UnifiedScreen({super.key});
 
@@ -107,23 +182,32 @@ class UnifiedScreen extends StatefulWidget {
 }
 
 class _UnifiedScreenState extends State<UnifiedScreen> {
-  final List<TextEditingController> nameControllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<TextEditingController> matriculaControllers =
-      List.generate(6, (_) => TextEditingController());
-  
+  // Controladores para os campos de nome e matrícula do aluno
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController matriculaController = TextEditingController();
+
+  // Controladores para os campos de conexão do broker
   final TextEditingController ipController = TextEditingController();
   final TextEditingController portaController = TextEditingController(text: '1883');
   final TextEditingController usuarioController = TextEditingController();
   final TextEditingController senhaController = TextEditingController();
   final BrokerInfo brokerInfo = BrokerInfo.instance;
 
-  int currentCount = 1;
+  @override
+  void initState() {
+    super.initState();
+    // Carrega os dados persistidos do broker ao iniciar a tela
+    ipController.text = brokerInfo.ip;
+    portaController.text = brokerInfo.porta.toString();
+    usuarioController.text = brokerInfo.usuario;
+    senhaController.text = brokerInfo.senha;
+  }
 
   @override
   void dispose() {
+    // Descarta os controladores para liberar recursos
     for (var c in [
-      ...nameControllers, ...matriculaControllers,
+      nameController, matriculaController,
       ipController, portaController, usuarioController, senhaController,
     ]) {
       c.dispose();
@@ -131,86 +215,90 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     super.dispose();
   }
 
-  // REQUERIMENTO 1: Lógica de conexão e avanço com validação e pop-ups
-  Future<void> _connectAndAdvance() async {
-    // Validação de campos
-    if (nameControllers[0].text.trim().isEmpty) {
-      _showErrorDialog("Campo Obrigatório", "Por favor, preencha o nome do Integrante 1 para ser usado como Client ID.");
-      return;
-    }
-    if (ipController.text.trim().isEmpty) {
-      _showErrorDialog("Campo Obrigatório", "Por favor, informe o IP do broker.");
-      return;
-    }
+  // Lógica para conectar ou desconectar do broker
+  Future<void> _connectOrDisconnect() async {
+    if (brokerInfo.client != null && brokerInfo.client!.connectionStatus!.state == MqttConnectionState.connected) {
+      // Se já conectado, desconecta
+      await brokerInfo.disconnect(onStateChange: () => setState(() {}));
+      _clearAllFields(); // Limpa os campos ao desconectar
+      _showInfoDialog("Desconectado", "Você foi desconectado do broker.");
+    } else {
+      // Se não conectado, tenta conectar
+      // Validação de campos obrigatórios
+      if (nameController.text.trim().isEmpty) {
+        _showErrorDialog("Campo Obrigatório", "Por favor, preencha o nome do aluno para ser usado como Client ID.");
+        return;
+      }
+      if (ipController.text.trim().isEmpty) {
+        _showErrorDialog("Campo Obrigatório", "Por favor, informe o IP do broker.");
+        return;
+      }
 
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity == ConnectivityResult.none && mounted) {
-      _showErrorDialog("Sem Internet", "Por favor, verifique sua conexão com a internet.");
-      return;
-    }
+      // Verifica a conectividade da internet
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity == ConnectivityResult.none && mounted) {
+        _showErrorDialog("Sem Internet", "Por favor, verifique sua conexão com a internet.");
+        return;
+      }
 
-    // REQUERIMENTO 2: Gera o Client ID a partir do nome do primeiro integrante
-    final String clientId = nameControllers[0].text.trim().toLowerCase().replaceAll(' ', '_');
+      // Gera o Client ID a partir do nome do aluno (removendo caracteres não alfanuméricos)
+      final String clientId = nameController.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
 
-    // Exibe pop-up de "Conectando..."
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Text("Conectando..."),
-          ],
+      // Exibe pop-up de "Conectando..."
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Conectando..."),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
-    final bool connected = await brokerInfo.connect(
-      ip: ipController.text.trim(),
-      porta: int.tryParse(portaController.text.trim()) ?? 1883,
-      usuario: usuarioController.text.trim(),
-      senha: senhaController.text.trim(),
-      credenciais: brokerInfo.credenciais,
-      clientId: clientId, // Passa o Client ID gerado
-      onStateChange: () => setState(() {}),
-    );
+      // Tenta conectar ao broker
+      final bool connected = await brokerInfo.connect(
+        ip: ipController.text.trim(),
+        porta: int.tryParse(portaController.text.trim()) ?? 1883,
+        usuario: usuarioController.text.trim(),
+        senha: senhaController.text.trim(),
+        credenciais: brokerInfo.credenciais,
+        clientId: clientId, // Passa o Client ID gerado
+        onStateChange: () => setState(() {}), // Atualiza a UI após a mudança de estado
+      );
 
-    if (mounted) {
-      Navigator.pop(context); // Fecha o pop-up de "Conectando..."
-
-      _showConnectionResultDialog(connected);
+      if (mounted) {
+        Navigator.pop(context); // Fecha o pop-up de "Conectando..."
+        _showConnectionResultDialog(connected); // Exibe o resultado da conexão
+      }
     }
   }
-  
- void _showConnectionResultDialog(bool success) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(success ? "Sucesso!" : "Falha na Conexão"),
-      // AQUI ESTÁ A MUDANÇA: Exibe o status detalhado do broker em caso de erro
-      content: Text(success
-          ? "A conexão com o broker MQTT foi estabelecida."
-          : brokerInfo.status), // Mostra a mensagem de erro detalhada!
-      actions: [
-        TextButton(
-          child: const Text("OK"),
-          onPressed: () {
-            Navigator.pop(context); 
-            if (success && mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const EscolhaExperimento()),
-              );
-            }
-          },
-        ),
-      ],
-    ),
-  );
-}
 
+  // Exibe um diálogo com o resultado da conexão
+  void _showConnectionResultDialog(bool success) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(success ? "Sucesso!" : "Falha na Conexão"),
+        content: Text(success
+            ? "A conexão com o broker MQTT foi estabelecida e a mensagem de sucesso publicada."
+            : brokerInfo.status), // Mostra a mensagem de erro detalhada!
+        actions: [
+          TextButton(
+            child: const Text("OK"),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Exibe um diálogo de erro
   void _showErrorDialog(String title, String content) {
     showDialog(
       context: context,
@@ -227,33 +315,36 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     );
   }
 
-  // --- Funções de UI (adicionar, remover, limpar) sem alterações ---
-  void _onAddMember() {
-    if (currentCount < 6) setState(() => currentCount++);
+  // Exibe um diálogo de informação
+  void _showInfoDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            child: const Text("OK"),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _onRemoveMember(int index) {
-    setState(() {
-      for (int i = index; i < currentCount - 1; i++) {
-        nameControllers[i].text = nameControllers[i + 1].text;
-        matriculaControllers[i].text = matriculaControllers[i + 1].text;
-      }
-      nameControllers[currentCount - 1].clear();
-      matriculaControllers[currentCount - 1].clear();
-      currentCount--;
-    });
-  }
-
+  // Limpa todos os campos de entrada e reseta o estado do broker
   void _clearAllFields() {
     setState(() {
-      for (var c in [...nameControllers, ...matriculaControllers, ipController, portaController, usuarioController, senhaController]) {
-        c.clear();
-      }
+      nameController.clear();
+      matriculaController.clear();
+      ipController.clear();
       portaController.text = '1883';
-      currentCount = 1;
+      usuarioController.clear();
+      senhaController.clear();
+      brokerInfo.resetPublishedSuccessMessage(); // Reseta o estado da mensagem de sucesso
     });
   }
-  
+
   // =================================================================
   // BUILD METHOD E WIDGETS DE UI
   // =================================================================
@@ -261,6 +352,8 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isConnected = brokerInfo.status == 'Conectado';
+    // O botão "Avançar para Experimentos" só é habilitado se conectado E a mensagem de sucesso foi publicada
+    final bool canProceedToExperiments = isConnected && brokerInfo.publishedSuccessMessage;
 
     return Scaffold(
       appBar: AppBar(
@@ -279,67 +372,87 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionContainer(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('Conexão com Broker', theme),
-                  const SizedBox(height: 16),
-                  if (isConnected)
-                    Center(
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: 150,
-                            height: 120,
-                            child: Lottie.asset('assets/TudoCerto.json', repeat: false),
-                          ),
-                          const Text('Conectado!',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  _buildBrokerInputs(theme),
-                ],
-              )),
-            const SizedBox(height: 24),
+            // Seção de Conexão com Broker
             _buildSectionContainer(
                 child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionHeader('Integrantes do Grupo', theme),
-                const SizedBox(height: 8),
-                ...List.generate(currentCount, (i) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: _buildMemberInputs(i, theme),
-                  );
-                }),
-              ],
-            )),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Conexão com Broker', theme),
+                    const SizedBox(height: 16),
+                    // Exibe animação de sucesso se conectado
+                    if (isConnected)
+                      Center(
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: 150,
+                              height: 120,
+                              child: Lottie.asset('assets/TudoCerto.json', repeat: false),
+                            ),
+                            const Text('Conectado!',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    _buildBrokerInputs(theme),
+                  ],
+                )),
+            const SizedBox(height: 24),
+            // Seção de Dados do Aluno (agora apenas um aluno)
+            _buildSectionContainer(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Dados do Aluno', theme),
+                    const SizedBox(height: 8),
+                    _buildStudentInputs(theme), // Widget para os campos do aluno
+                  ],
+                )),
+            const SizedBox(height: 24),
+            // Botão para conectar/desconectar
+            ElevatedButton(
+              onPressed: _connectOrDisconnect,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isConnected ? Colors.red : theme.primaryColor,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                isConnected ? 'Desconectar' : 'Conectar',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Botão para avançar para a tela de experimentos
+            ElevatedButton(
+              onPressed: canProceedToExperiments
+                  ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EscolhaExperimento()),
+                );
+              }
+                  : null, // Desabilita o botão se não puder avançar
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canProceedToExperiments ? theme.primaryColor : Colors.grey,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Avançar para Experimentos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
           ],
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: _connectAndAdvance, // Ação do botão foi atualizada
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.primaryColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Avançar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
       ),
     );
   }
 
+  // Constrói os campos de entrada para o broker
   Widget _buildBrokerInputs(ThemeData theme) {
     bool areCredentialsEnabled = brokerInfo.credenciais;
 
@@ -349,7 +462,7 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
           controller: ipController,
           decoration: _inputDecoration('IP do Broker', theme),
           keyboardType: TextInputType.number,
-          // REQUERIMENTO 3: Usando o formatador de IP
+          // Usando o formatador de IP para garantir o formato correto
           inputFormatters: [FilteringTextInputFormatter.digitsOnly, IpAddressInputFormatter()],
         ),
         const SizedBox(height: 16),
@@ -359,7 +472,7 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 24),
-        // ... O resto da UI (ChoiceChips, campos de usuário/senha) permanece igual
+        // Opções de credenciais (com/sem)
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -420,8 +533,8 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
       ],
     );
   }
-  
-  // Funções de build da UI sem alterações
+
+  // Constrói o container para as seções da UI
   Widget _buildSectionContainer({required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -436,6 +549,7 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     );
   }
 
+  // Constrói o cabeçalho das seções
   Widget _buildSectionHeader(String title, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -449,57 +563,29 @@ class _UnifiedScreenState extends State<UnifiedScreen> {
     );
   }
 
-  Widget _buildMemberInputs(int i, ThemeData theme) {
-    final bool isLastItem = i == currentCount - 1;
+  // Constrói os campos de entrada para os dados do aluno
+  Widget _buildStudentInputs(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Integrante ${i + 1}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (currentCount > 1)
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                    tooltip: 'Remover Integrante',
-                    onPressed: () => _onRemoveMember(i),
-                  ),
-                if (currentCount > 1 && currentCount < 6 && isLastItem) const SizedBox(width: 4),
-                if (currentCount < 6 && isLastItem)
-                  IconButton(
-                    icon: Icon(Icons.add_circle_outline, color: theme.primaryColor),
-                    tooltip: 'Adicionar Integrante',
-                    onPressed: _onAddMember,
-                  ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
         TextFormField(
-          controller: nameControllers[i],
-          decoration: _inputDecoration('Nome Completo', theme),
+          controller: nameController,
+          decoration: _inputDecoration('Nome Completo do Aluno', theme),
+          // Permite qualquer caractere (incluindo especiais)
+          inputFormatters: [],
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: matriculaControllers[i],
-          decoration: _inputDecoration('Matrícula', theme),
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          controller: matriculaController,
+          decoration: _inputDecoration('Matrícula do Aluno', theme),
+          // Permite qualquer caractere (incluindo texto)
+          inputFormatters: [],
         ),
       ],
     );
   }
 
+  // Constrói a decoração padrão para os campos de entrada de texto
   InputDecoration _inputDecoration(String label, ThemeData theme) {
     return InputDecoration(
       labelText: label,
