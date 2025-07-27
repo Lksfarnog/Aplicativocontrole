@@ -3,24 +3,51 @@ import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:pdfx/pdfx.dart';
 import 'dadosintegrante.dart';
-import 'malha_aberta_fechada_page.dart'; // Importa a nova página
+import 'malha_aberta_fechada_page.dart';
+import 'sistemas_ordem_page.dart';
+import 'sistemas_instaveis_page.dart';
+import 'controlador_pid_page.dart';
+import 'resposta_frequencia_page.dart';
 
-// Tela 1: Escolha do tipo de experimento
 class EscolhaExperimento extends StatelessWidget {
   const EscolhaExperimento({super.key});
 
-  // ALTERADO: Esta função agora decide para qual tela navegar
-  void _navigateToExperimento(BuildContext context, String title, Map<String, String> parametros, String pdfAssetPath) {
+  void _navigateToExperimento(BuildContext context, String title,
+      Map<String, String> parametros, String pdfAssetPath) {
     if (title == 'Malha Aberta e Malha Fechada') {
-      // Navega para a página personalizada, passando o caminho do PDF
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => MalhaAbertaFechadaPage(pdfAssetPath: pdfAssetPath),
+          builder: (context) =>
+              MalhaAbertaFechadaPage(pdfAssetPath: pdfAssetPath),
         ),
       );
+    } else if (title == 'Sistemas de 1ª e 2ª ordem') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SistemasOrdemPage(pdfAssetPath: pdfAssetPath),
+        ),
+      );
+    } else if (title == 'Sistemas Instáveis em MA') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  SistemasInstaveisPage(pdfAssetPath: pdfAssetPath)));
+    } else if (title == 'Controlador PID') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  ControladorPidPage(pdfAssetPath: pdfAssetPath)));
+    } else if (title == 'Resposta em Frequência') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  RespostaFrequenciaPage(pdfAssetPath: pdfAssetPath)));
     } else {
-      // Mantém o comportamento original para os outros experimentos
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -38,7 +65,8 @@ class EscolhaExperimento extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Seleção de Experimento', style: TextStyle(color: Colors.white)),
+        title: const Text('Seleção de Experimento',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -57,14 +85,12 @@ class EscolhaExperimento extends StatelessWidget {
                   context,
                   'Malha Aberta e Malha Fechada',
                   {
-                    // O mapa de parâmetros pode ser o original ou vazio,
-                    // pois a lógica de navegação o ignora para este caso.
                     'uMA': 'U Malha aberta',
                     'refMF': 'Referência Malha Fechada',
                     'erroMF': 'Erro Malha Fechada',
                     'uMF': 'U Malha Fechada',
                   },
-                  'assets/pdfs/malha_aberta.pdf', 
+                  'assets/pdfs/malha_aberta.pdf',
                 ),
                 const SizedBox(height: 40),
                 _buildExperimentoButton(
@@ -99,8 +125,24 @@ class EscolhaExperimento extends StatelessWidget {
                   context,
                   'Controlador PID',
                   {
-                    'sc_kp': 'SC - Kp', 'sc_kd': 'SC - Kd', 'sc_ki': 'SC - Ki', 'sc_tetaref': 'SC - tetaref', 'sc_erro': 'SC - erro', 'sc_up': 'SC - Up', 'sc_ui': 'SC - Ui', 'sc_ud': 'SC - Ud', 'sc_u': 'SC - U',
-                    'pid_kp': 'PID - Kp', 'pid_kd': 'PID - Kd', 'pid_ki': 'PID - Ki', 'pid_tetaref': 'PID - tetaref', 'pid_erro': 'PID - erro', 'pid_up': 'PID - Up', 'pid_ui': 'PID - Ui', 'pid_ud': 'PID - Ud', 'pid_u': 'PID - U'
+                    'sc_kp': 'SC - Kp',
+                    'sc_kd': 'SC - Kd',
+                    'sc_ki': 'SC - Ki',
+                    'sc_tetaref': 'SC - tetaref',
+                    'sc_erro': 'SC - erro',
+                    'sc_up': 'SC - Up',
+                    'sc_ui': 'SC - Ui',
+                    'sc_ud': 'SC - Ud',
+                    'sc_u': 'SC - U',
+                    'pid_kp': 'PID - Kp',
+                    'pid_kd': 'PID - Kd',
+                    'pid_ki': 'PID - Ki',
+                    'pid_tetaref': 'PID - tetaref',
+                    'pid_erro': 'PID - erro',
+                    'pid_up': 'PID - Up',
+                    'pid_ui': 'PID - Ui',
+                    'pid_ud': 'PID - Ud',
+                    'pid_u': 'PID - U'
                   },
                   'assets/pdfs/controlador_pid.pdf',
                 ),
@@ -125,9 +167,11 @@ class EscolhaExperimento extends StatelessWidget {
     );
   }
 
-  Widget _buildExperimentoButton(BuildContext context, String title, Map<String, String> parametros, String pdfAssetPath) {
+  Widget _buildExperimentoButton(BuildContext context, String title,
+      Map<String, String> parametros, String pdfAssetPath) {
     return ElevatedButton(
-      onPressed: () => _navigateToExperimento(context, title, parametros, pdfAssetPath),
+      onPressed: () =>
+          _navigateToExperimento(context, title, parametros, pdfAssetPath),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         foregroundColor: Colors.white,
@@ -146,8 +190,6 @@ class EscolhaExperimento extends StatelessWidget {
   }
 }
 
-
-// Tela 2: A sua tela genérica original permanece aqui, intacta.
 class ExperimentoInputsPage extends StatefulWidget {
   final String title;
   final Map<String, String> parametros;
@@ -190,7 +232,8 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         title: Text(title, style: const TextStyle(color: Colors.red)),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text('OK')),
         ],
       ),
     );
@@ -199,8 +242,11 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
   Future<void> _enviarDados() async {
     final broker = BrokerInfo.instance;
 
-    if (broker.client == null || broker.client!.connectionStatus!.state != MqttConnectionState.connected) {
-      _showError('Não Conectado', 'Volte para a tela anterior e conecte-se ao broker primeiro.');
+    if (broker.client == null ||
+        broker.client!.connectionStatus!.state !=
+            MqttConnectionState.connected) {
+      _showError('Não Conectado',
+          'Volte para a tela anterior e conecte-se ao broker primeiro.');
       return;
     }
 
@@ -211,13 +257,15 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
       final text = _controllers[topic]!.text;
 
       if (text.isEmpty) {
-        _showError('Campos Vazios', 'Por favor, preencha o campo "$label" antes de enviar.');
+        _showError('Campos Vazios',
+            'Por favor, preencha o campo "$label" antes de enviar.');
         return;
       }
 
       final RegExp invalidCharPattern = RegExp(r'[^0-9\.\,\-]');
       if (invalidCharPattern.hasMatch(text)) {
-        _showError('Caracteres Inválidos', 'O campo "$label" contém letras ou símbolos não permitidos. Use apenas números.');
+        _showError('Caracteres Inválidos',
+            'O campo "$label" contém letras ou símbolos não permitidos. Use apenas números.');
         return;
       }
 
@@ -225,7 +273,8 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         final doubleValue = double.parse(text.replaceAll(',', '.'));
         dataToSend[topic] = doubleValue.toString();
       } catch (e) {
-        _showError('Formato Inválido', 'O valor no campo "$label" não é um número válido (ex: "1.2.3"). Por favor, corrija o formato.');
+        _showError('Formato Inválido',
+            'O valor no campo "$label" não é um número válido (ex: "1.2.3"). Por favor, corrija o formato.');
         return;
       }
     }
@@ -235,7 +284,8 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         final topic = entry.key;
         final message = entry.value;
         final builder = MqttClientPayloadBuilder()..addString(message);
-        broker.client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+        broker.client!
+            .publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       }
       showDialog(
         context: context,
@@ -251,7 +301,8 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
         ),
       );
     } catch (e) {
-      _showError('Erro de Envio', 'Ocorreu um erro ao enviar os dados para o broker: $e');
+      _showError('Erro de Envio',
+          'Ocorreu um erro ao enviar os dados para o broker: $e');
     }
   }
 
@@ -331,7 +382,6 @@ class _ExperimentoInputsPageState extends State<ExperimentoInputsPage> {
   }
 }
 
-// Sua tela de PDF original permanece aqui.
 class PdfPage extends StatefulWidget {
   final String pdfAssetPath;
 
@@ -379,14 +429,18 @@ class _PdfPageState extends State<PdfPage> {
             Text("Páginas: $contadorPaginas"),
             IconButton(
               onPressed: () {
-                pdfControllerPinch.previousPage(duration: const Duration(milliseconds: 500), curve: Curves.linear);
+                pdfControllerPinch.previousPage(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.linear);
               },
               icon: const Icon(Icons.arrow_back),
             ),
             Text("Página Atual: $paginaAtual"),
             IconButton(
               onPressed: () {
-                pdfControllerPinch.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.linear);
+                pdfControllerPinch.nextPage(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.linear);
               },
               icon: const Icon(Icons.arrow_forward),
             )

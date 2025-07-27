@@ -1,12 +1,10 @@
 import 'package:flutter/services.dart';
 
-// REQUERIMENTO 3: Formatação automática do campo de IP.
 class IpAddressInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.text.length > oldValue.text.length) {
-      // Digitou um caractere
       var digitsOnly = newValue.text.replaceAll(RegExp(r'\D'), '');
       if (digitsOnly.length > 12) {
         digitsOnly = digitsOnly.substring(0, 12);
@@ -26,7 +24,6 @@ class IpAddressInputFormatter extends TextInputFormatter {
         selection: TextSelection.collapsed(offset: result.length),
       );
     } else {
-      // Apagou um caractere
       return newValue;
     }
   }

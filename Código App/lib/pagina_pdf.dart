@@ -47,14 +47,21 @@ class _PdfPageState extends State<PdfPage> {
             Text("Páginas: ${contadorPaginas}"),
             IconButton(
               onPressed: () {
-                pdfControllerPinch.previousPage(duration: Duration(milliseconds: 500), curve: Curves.linear);
+                pdfControllerPinch.previousPage(
+                    duration: Duration(milliseconds: 500),
+                    curve: Curves.linear);
               },
               icon: Icon(Icons.arrow_back),
             ),
             Text("Página Atual: ${paginaAtual}"),
-            IconButton(onPressed: () {
-              pdfControllerPinch.nextPage(duration: Duration(milliseconds: 500), curve: Curves.linear);
-            }, icon: Icon(Icons.arrow_forward),)
+            IconButton(
+              onPressed: () {
+                pdfControllerPinch.nextPage(
+                    duration: Duration(milliseconds: 500),
+                    curve: Curves.linear);
+              },
+              icon: Icon(Icons.arrow_forward),
+            )
           ],
         ),
         _pdfView(),

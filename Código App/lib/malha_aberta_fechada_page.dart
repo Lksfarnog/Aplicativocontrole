@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'dadosintegrante.dart';
-import 'broker.dart'; // Importa a classe PdfPage do arquivo broker.dart
+import 'broker.dart';
 
 class MalhaAbertaFechadaPage extends StatefulWidget {
   final String pdfAssetPath;
@@ -19,8 +21,62 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
   final _kpMFController = TextEditingController();
   final brokerInfo = BrokerInfo.instance;
 
+  final ValueNotifier<String> motorStatus = ValueNotifier<String>('Parado');
+  final ValueNotifier<double> velocidadeRpm = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> erroMF = ValueNotifier<double>(0.0);
+  final ValueNotifier<double> uMF = ValueNotifier<double>(0.0);
+
+  StreamSubscription? mqttSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupMqttListener();
+  }
+
+  void _setupMqttListener() {
+    if (brokerInfo.client != null &&
+        brokerInfo.client!.connectionStatus!.state ==
+            MqttConnectionState.connected) {
+      const topics = ['motor/status', 'motor/velocidade', 'uMF', 'erroMF'];
+      for (var topic in topics) {
+        brokerInfo.client!.subscribe(topic, MqttQos.atLeastOnce);
+      }
+
+      mqttSubscription = brokerInfo.client!.updates!
+          .listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
+        if (c != null && c.isNotEmpty) {
+          final recMess = c[0].payload as MqttPublishMessage;
+          final payload =
+              MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+          final topic = c[0].topic;
+
+          switch (topic) {
+            case 'motor/status':
+              motorStatus.value = payload;
+              break;
+            case 'motor/velocidade':
+              velocidadeRpm.value = double.tryParse(payload) ?? 0.0;
+              break;
+            case 'uMF':
+              uMF.value = double.tryParse(payload) ?? 0.0;
+              break;
+            case 'erroMF':
+              erroMF.value = double.tryParse(payload) ?? 0.0;
+              break;
+          }
+        }
+      });
+    }
+  }
+
   @override
   void dispose() {
+    mqttSubscription?.cancel();
+    const topics = ['motor/status', 'motor/velocidade', 'uMF', 'erroMF'];
+    for (var topic in topics) {
+      brokerInfo.client?.unsubscribe(topic);
+    }
     _uMAController.dispose();
     _refMFController.dispose();
     _kpMFController.dispose();
@@ -35,7 +91,8 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
       return;
     }
     final builder = MqttClientPayloadBuilder()..addString(message);
-    brokerInfo.client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    brokerInfo.client!
+        .publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
   }
 
   void _enviarMalhaAberta() {
@@ -82,7 +139,8 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Malha Aberta vs. Fechada', style: TextStyle(color: Colors.white)),
+        title: const Text('Malha Aberta vs. Fechada',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color.fromRGBO(19, 85, 156, 1),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -116,15 +174,13 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
                 backgroundColor: Colors.red[700],
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textStyle:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 24),
             _buildStatusDisplay(),
-
-          const SizedBox(height: 24),
-
-
+            const SizedBox(height: 24),
             _buildControlCard(
               title: 'Controle em Malha Aberta',
               children: [
@@ -168,7 +224,7 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
     );
   }
 
-    Widget _buildStatusDisplay() {
+  Widget _buildStatusDisplay() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -185,25 +241,31 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
                   ),
             ),
             const Divider(height: 20),
-            // Cada ValueListenableBuilder se reconstrói sozinho quando o valor muda
             ValueListenableBuilder<String>(
-              valueListenable: brokerInfo.motorStatus,
-              builder: (context, status, child) => Text('Status: $status', style: const TextStyle(fontSize: 16)),
+              valueListenable: motorStatus,
+              builder: (context, status, child) =>
+                  Text('Status: $status', style: const TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder<double>(
-              valueListenable: brokerInfo.velocidadeRpm,
-              builder: (context, velocidade, child) => Text('Velocidade: ${velocidade.toStringAsFixed(2)} RPM', style: const TextStyle(fontSize: 16)),
+              valueListenable: velocidadeRpm,
+              builder: (context, velocidade, child) => Text(
+                  'Velocidade: ${velocidade.toStringAsFixed(2)} RPM',
+                  style: const TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder<double>(
-              valueListenable: brokerInfo.uMF,
-              builder: (context, u, child) => Text('Sinal de Controle (u): ${u.toStringAsFixed(2)} %', style: const TextStyle(fontSize: 16)),
+              valueListenable: uMF,
+              builder: (context, u, child) => Text(
+                  'Sinal de Controle (u): ${u.toStringAsFixed(2)} %',
+                  style: const TextStyle(fontSize: 16)),
             ),
-             const SizedBox(height: 8),
+            const SizedBox(height: 8),
             ValueListenableBuilder<double>(
-              valueListenable: brokerInfo.erroMF,
-              builder: (context, erro, child) => Text('Erro (Ref - Vel): ${erro.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16)),
+              valueListenable: erroMF,
+              builder: (context, erro, child) => Text(
+                  'Erro (Ref - Vel): ${erro.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -211,7 +273,8 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
     );
   }
 
-  Widget _buildControlCard({required String title, required List<Widget> children}) {
+  Widget _buildControlCard(
+      {required String title, required List<Widget> children}) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

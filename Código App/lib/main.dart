@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:lottie/lottie.dart';
-import 'dadosintegrante.dart'; // Importa a tela principal
+import 'dadosintegrante.dart';
 
 void main() {
   runApp(const MyApp());
@@ -26,7 +26,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Tela de Splash inicial
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
 
