@@ -44,7 +44,7 @@ class _PdfPageState extends State<PdfPage> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text("Páginas: ${contadorPaginas}"),
+            Text("Páginas: $contadorPaginas"),
             IconButton(
               onPressed: () {
                 pdfControllerPinch.previousPage(
@@ -53,7 +53,7 @@ class _PdfPageState extends State<PdfPage> {
               },
               icon: Icon(Icons.arrow_back),
             ),
-            Text("Página Atual: ${paginaAtual}"),
+            Text("Página Atual: $paginaAtual"),
             IconButton(
               onPressed: () {
                 pdfControllerPinch.nextPage(

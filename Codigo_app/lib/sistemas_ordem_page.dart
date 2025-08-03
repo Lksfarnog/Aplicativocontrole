@@ -180,33 +180,71 @@ class _SistemasOrdemPageState extends State<SistemasOrdemPage> {
         child: const Icon(Icons.question_mark),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: const Text('Parar Motor'),
-              onPressed: _pararMotor,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[700],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                textStyle:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.stop_circle_outlined),
+            label: const Text('Parar Motor'),
+            onPressed: _pararMotor,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 24),
-            _buildStatusDisplay(),
-            const SizedBox(height: 24),
-            _build1OrdemCard(),
-            const SizedBox(height: 24),
-            _build2OrdemCard(),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          _buildStatusDisplay(),
+          const SizedBox(height: 24),
+
+          // --- SEÇÃO DE 1ª ORDEM ---
+          Text(
+            "Sistema de 1ª Ordem (Velocidade)",
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          _buildParameterInputCard(
+            controller: _u1OrdemController,
+            title: 'Duty Cycle (%)',
+            description: 'Define a porcentagem da tensão (degrau de entrada) a ser aplicada para analisar a resposta de velocidade do sistema.',
+            hintText: 'Ex: 80.0',
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _enviar1Ordem, child: const Text('Aplicar Degrau de Velocidade')),
+          
+          const Divider(height: 40),
+
+          // --- SEÇÃO DE 2ª ORDEM ---
+          Text(
+            "Sistema de 2ª Ordem (Posição)",
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+           _buildParameterInputCard(
+            controller: _ref2OrdemController,
+            title: 'Referência (Graus)',
+            description: 'A meta de posição angular (em graus) que o controlador de 2ª ordem tentará alcançar.',
+            hintText: 'Ex: 120.0',
+          ),
+          const SizedBox(height: 16),
+          _buildParameterInputCard(
+            controller: _kp2OrdemController,
+            title: 'Ganho Proporcional (Kp)',
+            description: 'Ajusta a força da resposta do controlador de posição. Ganhos maiores resultam em respostas mais rápidas.',
+            hintText: 'Ex: 15.0',
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _enviar2Ordem, child: const Text('Aplicar Degrau de Posição')),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildStatusDisplay() {
     return Card(
@@ -256,79 +294,55 @@ class _SistemasOrdemPageState extends State<SistemasOrdemPage> {
     );
   }
 
-  Widget _build1OrdemCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Sistema de 1ª Ordem (Velocidade)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const Divider(height: 24),
-            _buildTextField(
-                controller: _u1OrdemController,
-                label: 'Duty Cycle (%)',
-                hint: 'Ex: 80.0'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-                onPressed: _enviar1Ordem,
-                child: const Text('Aplicar Degrau de Velocidade')),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget reutilizável para criar um card de input de parâmetro
+Widget _buildParameterInputCard({
+  required TextEditingController controller,
+  required String title,
+  required String description,
+  required String hintText,
+}) {
+  return Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12), // Bordas arredondadas
+      side: BorderSide(color: Colors.grey.shade300, width: 1),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título do parâmetro
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Campo de Input (TextFormField)
+          TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: hintText,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,-]'))],
+          ),
+          const SizedBox(height: 12),
 
-  Widget _build2OrdemCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Sistema de 2ª Ordem (Posição)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const Divider(height: 24),
-            _buildTextField(
-                controller: _ref2OrdemController,
-                label: 'Referência (Graus)',
-                hint: 'Ex: 120.0'),
-            const SizedBox(height: 16),
-            _buildTextField(
-                controller: _kp2OrdemController,
-                label: 'Ganho Proporcional (Kp)',
-                hint: 'Ex: 15.0'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-                onPressed: _enviar2Ordem,
-                child: const Text('Aplicar Degrau de Posição')),
-          ],
-        ),
+          // Texto explicativo
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildTextField(
-      {required TextEditingController controller,
-      required String label,
-      required String hint}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-          labelText: label, hintText: hint, border: const OutlineInputBorder()),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
-    );
-  }
+    ),
+  );
+}
 }

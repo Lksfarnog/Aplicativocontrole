@@ -181,44 +181,39 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
             const SizedBox(height: 24),
             _buildStatusDisplay(),
             const SizedBox(height: 24),
-            _buildControlCard(
-              title: 'Controle em Malha Aberta',
-              children: [
-                _buildTextField(
-                  controller: _uMAController,
-                  label: 'Duty Cycle (%)',
-                  hint: 'Ex: 50.0',
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _enviarMalhaAberta,
-                  child: const Text('Enviar Comando de Malha Aberta'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildControlCard(
-              title: 'Controle em Malha Fechada',
-              children: [
-                _buildTextField(
-                  controller: _refMFController,
-                  label: 'Referência (RPM)',
-                  hint: 'Ex: 1500.0',
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _kpMFController,
-                  label: 'Ganho Proporcional (Kp)',
-                  hint: 'Ex: 0.15',
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _enviarMalhaFechada,
-                  child: const Text('Enviar Comando de Malha Fechada'),
-                ),
-              ],
-            ),
-          ],
+            _buildParameterInputCard(
+    controller: _uMAController,
+    title: 'Duty Cycle (%) - Malha Aberta',
+    description: 'Define a porcentagem da tensão máxima que será aplicada diretamente ao motor, sem realimentação.',
+    hintText: 'Ex: 50.0',
+  ),
+  const SizedBox(height: 8),
+  ElevatedButton(
+    onPressed: _enviarMalhaAberta,
+    child: const Text('Enviar Comando de Malha Aberta'),
+  ),
+  const Divider(height: 40),
+
+  // --- SEÇÃO DE MALHA FECHADA (AGORA USANDO O NOVO WIDGET) ---
+  _buildParameterInputCard(
+    controller: _refMFController,
+    title: 'Referência (RPM) - Malha Fechada',
+    description: 'A meta de velocidade (em RPM) que o controlador tentará alcançar e manter.',
+    hintText: 'Ex: 1500.0',
+  ),
+  const SizedBox(height: 16),
+  _buildParameterInputCard(
+    controller: _kpMFController,
+    title: 'Ganho Proporcional (Kp)',
+    description: 'Define a "agressividade" da resposta do controlador. Valores maiores tentam corrigir o erro mais rapidamente.',
+    hintText: 'Ex: 0.25',
+  ),
+  const SizedBox(height: 8),
+  ElevatedButton(
+    onPressed: _enviarMalhaFechada,
+    child: const Text('Enviar Comando de Malha Fechada'),
+  ),
+],
         ),
       ),
     );
@@ -273,48 +268,55 @@ class _MalhaAbertaFechadaPageState extends State<MalhaAbertaFechadaPage> {
     );
   }
 
-  Widget _buildControlCard(
-      {required String title, required List<Widget> children}) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-              textAlign: TextAlign.center,
+  // Widget reutilizável para criar um card de input de parâmetro
+Widget _buildParameterInputCard({
+  required TextEditingController controller,
+  required String title,
+  required String description,
+  required String hintText,
+}) {
+  return Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12), // Bordas arredondadas
+      side: BorderSide(color: Colors.grey.shade300, width: 1),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título do parâmetro
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Campo de Input (TextFormField)
+          TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: hintText,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12.0),
             ),
-            const Divider(height: 24),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
+            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,-]'))],
+          ),
+          const SizedBox(height: 12),
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-  }) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: const OutlineInputBorder(),
+          // Texto explicativo
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+          ),
+        ],
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
-      ],
-    );
-  }
+    ),
+  );
+}
 }
