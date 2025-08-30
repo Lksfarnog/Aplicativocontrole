@@ -2,14 +2,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <Encoder.h>
+#include <ESP32Encoder.h>
 
 // ==========================================================
 // == 1. CONFIGURAÇÕES
 // ==========================================================
-const char* SSID = "NOME_REDE";
-const char* PASSWORD = "SENHA_REDE";
-const char* MQTT_BROKER = "IP_BROKER";
+const char* SSID = "Galaxy";
+const char* PASSWORD = "5an5un65al";
+const char* MQTT_BROKER = "192.168.118.146";
 const int MQTT_PORT = 1883;
 
 // ==========================================================
@@ -32,7 +32,7 @@ const float ENCODER_PPR = 334.0 * 4.0;
 // ==========================================================
 // == 4. OBJETOS E VARIÁVEIS DE ESTADO
 // ==========================================================
-Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
+ESP32Encoder encoder;
 
 enum ControlMode { PARADO, MALHA_ABERTA, MALHA_FECHADA };
 ControlMode currentMode = PARADO;
@@ -85,10 +85,13 @@ void setup() {
   digitalWrite(MOTOR_IN4_PIN, LOW);
   
   analogWrite(MOTOR_PWM_PIN, 0); // Controla a velocidade via ENB
-  Serial.println("-> Pinos do Motor configurados para o Canal B (ENB, IN3, IN4).");
-  
-  Serial.println("-> Encoder configurado para a biblioteca de Paul Stoffregen.");
+  Serial.println("-> Pinos do Motor configurados.");
 
+  // --- Configuração do Encoder com a nova biblioteca
+  encoder.attachHalfQuad(ENCODER_A_PIN, ENCODER_B_PIN);
+  encoder.setCount(0);
+  Serial.println("-> Encoder configurado usando o periférico PCNT do ESP32.");
+  
   setup_wifi();
   client.setServer(MQTT_BROKER, MQTT_PORT);
   client.setCallback(callback);
@@ -111,7 +114,7 @@ void loop() {
     lastControlTime = now;
 
     encoder_pos_ant = encoder_pos;
-    encoder_pos = encoder.read();
+    encoder_pos = encoder.getCount(); // AQUI: Use getCount()
 
     double pos_deg = (encoder_pos * 360.0) / ENCODER_PPR;
     double pos_deg_ant = (encoder_pos_ant * 360.0) / ENCODER_PPR;
@@ -195,7 +198,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   } else if (topicStr == "controle/comando") {
     if (message == "PARAR") {
       currentMode = PARADO;
-      encoder.write(0);
+      encoder.setCount(0); // AQUI: Use setCount(0)
       encoder_pos = 0;
       vel_rpm = 0;
       Serial.println("-> COMANDO: Parar motor. Contador do encoder zerado.");
